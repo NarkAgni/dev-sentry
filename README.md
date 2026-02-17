@@ -137,7 +137,7 @@ gnome-extensions enable dev-sentry@narkagni
   <p><strong>Ethereum (ETH):</strong></p>
   <pre>0xf43c3f83e53495ea06676c0d9d4fc87ce627ffa3</pre>
 
-  <p><strong>ThtherUS (USDT):</strong></p>
+  <p><strong>Tether (USDT - TRC20):</strong></p>
   <pre>THnqG9nchLgaf1LzGK3CqdmNpRxw59hs82</pre>
 </details>
 
