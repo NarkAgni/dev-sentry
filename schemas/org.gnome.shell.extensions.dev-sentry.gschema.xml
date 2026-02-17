@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.dev-sentry" path="/org/gnome/shell/extensions/dev-sentry/">
+    <key name="project-path" type="s">
+      <default>''</default>
+      <summary>Active Project Path</summary>
+    </key>
+    <key name="show-notifications" type="b">
+      <default>true</default>
+      <summary>Show Notifications</summary>
+      <description>Toggle system notifications for extension actions.</description>
+    </key>
+  </schema>
+</schemalist>

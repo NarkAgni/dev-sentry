@@ -1,0 +1,18 @@
+{
+  "name": "Dev Sentry",
+  "description": "Streamline your GNOME Shell extension development. Dev Sentry brings real-time 'journalctl' logs directly to your panel with smart error parsing and debugging tools.\n\nKey Features:\n• Click-to-Fix: Click any error to open the exact file and line in VS Code instantly.\n• Nested Shell: Launch a safe testing environment without logging out.\n• Smart Filtering: Focus only on your project's logs to reduce noise.\n• Color-Coded Logs: Easily spot JS Errors, Critical warnings, and Traces.\n\nDisclaimer: This extension integrates with VS Code for workflow efficiency but is an independent project. It is NOT affiliated with, endorsed by, or sponsored by VS Code (Microsoft).",
+  "uuid": "dev-sentry@narkagni",
+  "settings-schema": "org.gnome.shell.extensions.dev-sentry",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48",
+    "49"
+  ],
+  "url": "https://github.com/narkagni/dev-sentry",
+  "donations": {
+    "buymeacoffee": "narkagni"
+  },
+  "version": 2
+}

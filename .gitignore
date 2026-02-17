@@ -1,0 +1,14 @@
+# Compiled schemas
+schemas/gschemas.compiled
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+
+# Builds
+*.zip
+*.tar.gz
