@@ -1,6 +1,6 @@
 <div align="center">
   <img src="icons/logo.png" alt="Dev Sentry Logo" width="128" height="128">
-  <h1>Gjs Dev Sentry</h1>
+  <h1>Dev Sentry</h1>
   <p><strong>The Ultimate Debugging Companion for GNOME Shell Extension Developers</strong></p>
   <p>Developed by <strong>Narkagni</strong></p>
 </div>
@@ -9,7 +9,7 @@
 
 <h2>Overview</h2>
 <p>
-  Gjs Dev Sentry is a specialized GNOME Shell extension designed to streamline the workflow of extension developers. 
+  Dev Sentry is a specialized GNOME Shell extension designed to streamline the workflow of extension developers. 
   It eliminates the need to constantly switch between terminals and the GUI by bringing logs, debugging tools, 
   and shell management directly into the top panel.
 </p>
@@ -112,7 +112,7 @@ gnome-extensions enable dev-sentry@narkagni
 
 <h2>Support Development</h2>
 <p>
-  Gjs Dev Sentry is open-source and free. If this tool helps you debug faster and saves you time, 
+  Dev Sentry is open-source and free. If this tool helps you debug faster and saves you time, 
   consider supporting the development.
 </p>
 
