@@ -14,7 +14,8 @@ const ERROR_KEYS = ['JS ERROR', 'TypeError', 'ReferenceError', 'SyntaxError', 'E
 const STACK_FRAME_RE = /file:\/\/.*\.js:\d+/;
 const IGNORE_RE = /^\s*(Stack trace:|==\s*Stack trace for context)/;
 
-const GREP_PATTERN = 'JS ERROR|TypeError|ReferenceError|SyntaxError|Gjs-CRITICAL|GNOME Shell-CRITICAL|Extension |file://';
+const GREP_RE = /JS ERROR|TypeError|ReferenceError|SyntaxError|Gjs-CRITICAL|GNOME Shell-CRITICAL|Extension |file:\/\//;
+
 const FILE_PATH_RE = /((?:file:\/\/|\/)[^\s,'"]+?\.js):(\d+)/;
 
 export class LogManager {
@@ -35,10 +36,9 @@ export class LogManager {
 
     start(restoreMode = false) {
         this._cancelled = false;
-        if (!restoreMode) {
+        if (!restoreMode)
             this._writeSince(GLib.DateTime.new_now_local().format('%Y-%m-%d %H:%M:%S'));
-        } 
-        this._runFetch(this._buildSinceCmd(restoreMode));
+        this._runFetch(this._buildArgv(restoreMode));
     }
 
     stop() {
@@ -84,20 +84,29 @@ export class LogManager {
         } catch (e) { console.error('[DevSentry] since-file write failed:', e); }
     }
 
-    _buildSinceCmd(restoreMode) {
-        let since;
+    // Build a direct argv array for journalctl instead of a shell
+    // command string. This avoids wrapping everything in bash and piping
+    // through grep. The grep filtering is now done in _processLine via GREP_RE.
+    _buildArgv(restoreMode) {
+        const argv = [
+            'journalctl', '-o', 'cat',
+            '_EXE=/usr/bin/gnome-shell',
+            '+',
+            'SYSLOG_IDENTIFIER=gnome-shell-nested',
+        ];
+
         if (restoreMode) {
-            let now = GLib.DateTime.new_now_local();
-            let past = now.add_minutes(-3);
-            since = past.format('%Y-%m-%d %H:%M:%S');
+            let past = GLib.DateTime.new_now_local().add_minutes(-3);
+            argv.push('--since', past.format('%Y-%m-%d %H:%M:%S'));
         } else {
-            since = this._readSince();
+            let since = this._readSince();
+            if (since)
+                argv.push('--since', since);
+            else
+                argv.push('-n', '200');
         }
 
-        let jCmd  = `journalctl -o cat _EXE=/usr/bin/gnome-shell + SYSLOG_IDENTIFIER=gnome-shell-nested`;
-        jCmd += since ? ` --since "${since}"` : ` -n 200`;
-        jCmd += ` | grep -E '${GREP_PATTERN}'`;
-        return jCmd;
+        return argv;
     }
 
     _killFetch() {
@@ -107,11 +116,11 @@ export class LogManager {
         }
     }
 
-    _runFetch(jCmd) {
+    _runFetch(argv) {
         this._killFetch();
         try {
             let proc = new Gio.Subprocess({
-                argv:  ['/bin/bash', '-c', jCmd],
+                argv,
                 flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE,
             });
             proc.init(null);
@@ -145,12 +154,13 @@ export class LogManager {
         let line = raw.trim();
         if (!line || IGNORE_RE.test(line)) return;
 
+        if (!GREP_RE.test(line)) return;
+
         let uuid = this.getActiveUUID();
-        const hasUuid = !uuid || line.includes(uuid);
-        const isFrame = STACK_FRAME_RE.test(line);
-        
+        const hasUuid    = !uuid || line.includes(uuid);
+        const isFrame    = STACK_FRAME_RE.test(line);
         const partOfBlock = this._inErrorBlock && isFrame;
-        
+
         if (!hasUuid && !partOfBlock) {
             this._inErrorBlock   = false;
             this._firstFrameDone = false;
@@ -182,7 +192,7 @@ export class LogManager {
 
         } else if (isFrame && this._inErrorBlock && !this._firstFrameDone) {
             type    = LogType.SOURCE;
-            display = 'FIX: ' + line; 
+            display = 'FIX: ' + line;
             this._firstFrameDone = true;
 
         } else if (isFrame && this._inErrorBlock) {
@@ -196,13 +206,8 @@ export class LogManager {
             this._firstFrameDone = false;
 
         } else {
-            if (line.includes('file://')) {
-                type    = LogType.TRACE;
-                display = 'TRACE: ' + line;
-            } else {
-                type    = LogType.TRACE;
-                display = 'TRACE: ' + line;
-            }
+            type    = LogType.TRACE;
+            display = 'TRACE: ' + line;
             this._inErrorBlock   = false;
             this._firstFrameDone = false;
         }

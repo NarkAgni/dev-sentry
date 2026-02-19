@@ -4,7 +4,10 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export default class DevSentryExtension extends Extension {
     enable() {
-        this._panel = new DevSentryPanel(this.getSettings());
+        this._panel = new DevSentryPanel(
+            this.getSettings(),
+            () => this.openPreferences()
+        );
         Main.panel.addToStatusArea('dev-sentry', this._panel);
     }
 

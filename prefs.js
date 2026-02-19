@@ -139,13 +139,6 @@ export default class DevSentryPreferences extends ExtensionPreferences {
             margin_bottom: 12,
         });
 
-        // const logo = new Gtk.Image({
-        //     icon_name: 'utilities-terminal-symbolic',
-        //     pixel_size: 96,
-        // });
-        // logo.set_css_classes(['accent']);
-        // heroBox.append(logo);
-
         const logoFile = `${this.path}/icons/logo.png`;
         const logo = Gtk.Image.new_from_file(logoFile);
         logo.set_pixel_size(128);
@@ -166,7 +159,7 @@ export default class DevSentryPreferences extends ExtensionPreferences {
         }));
 
         heroBox.append(new Gtk.Label({
-            label: 'Version 1.0  •  GPL-2.0-or-later',
+            label: 'Version 3  •  GPL-3.0',
             css_classes: ['dim-label', 'caption'],
         }));
 
@@ -186,21 +179,15 @@ export default class DevSentryPreferences extends ExtensionPreferences {
                 valign: Gtk.Align.CENTER,
                 css_classes: ['dim-label'],
             }));
+
             row.connect('activated', () => {
-                try {
-                    Gio.AppInfo.launch_default_for_uri(url, window.get_display().get_app_launch_context());
-                } catch (e) {
-                    try { imports.gi.GLib.spawn_command_line_async(`xdg-open ${url}`); } catch (_) {}
-                }
+                Gio.AppInfo.launch_default_for_uri(url, window.get_display().get_app_launch_context());
             });
             group.add(row);
         };
 
         addLink('GitHub Repository', 'github.com/narkagni/dev-sentry',
             'system-software-install-symbolic', 'https://github.com/narkagni/dev-sentry');
-
-        addLink('GNOME Extensions', 'extensions.gnome.org',
-            'application-x-addon-symbolic', 'https://extensions.gnome.org/extension/dev-sentry');
     }
 
     _buildAboutFeatures(page) {
@@ -210,14 +197,13 @@ export default class DevSentryPreferences extends ExtensionPreferences {
         const features = [
             { title: 'Real-time Log Streaming',   subtitle: 'Live journalctl stream with smart error parsing',                         icon: 'media-playback-start-symbolic' },
             { title: 'Click to Fix',               subtitle: 'Click any error line to open VS Code at the exact file and line',         icon: 'go-jump-symbolic' },
-            { title: 'Nested Shell Launcher',      subtitle: 'Launch a nested GNOME Shell instantly — no logout needed',                icon: 'utilities-terminal-symbolic' },
+            { title: 'Nested Shell Launcher',      subtitle: 'Launch a nested GNOME Shell instantly – no logout needed',                icon: 'utilities-terminal-symbolic' },
             { title: 'Smart Project Filter',       subtitle: 'Focus only on your extension by setting a project folder path',           icon: 'funnel-symbolic' },
             { title: 'Color-coded Log Types',      subtitle: 'Red = Error  •  Orange = Critical  •  Teal = Fix  •  Blue = Trace',      icon: 'applications-graphics-symbolic' },
         ];
 
-        for (let f of features) {
+        for (let f of features)
             group.add(new Adw.ActionRow({ title: f.title, subtitle: f.subtitle, icon_name: f.icon }));
-        }
     }
 
     _buildAboutAuthor(page) {
@@ -226,7 +212,7 @@ export default class DevSentryPreferences extends ExtensionPreferences {
 
         group.add(new Adw.ActionRow({
             title: 'Narkagni',
-            subtitle: 'Author &amp; Maintainer',
+            subtitle: 'Author & Maintainer',
             icon_name: 'avatar-default-symbolic',
         }));
 
@@ -255,13 +241,12 @@ export default class DevSentryPreferences extends ExtensionPreferences {
             valign: Gtk.Align.CENTER,
             css_classes: ['dim-label'],
         }));
+
         coffeeRow.connect('activated', () => {
-            try {
-                Gio.AppInfo.launch_default_for_uri('https://buymeacoffee.com/narkagni',
-                    window.get_display().get_app_launch_context());
-            } catch (e) {
-                try { imports.gi.GLib.spawn_command_line_async('xdg-open https://buymeacoffee.com/narkagni'); } catch (_) {}
-            }
+            Gio.AppInfo.launch_default_for_uri(
+                'https://buymeacoffee.com/narkagni',
+                window.get_display().get_app_launch_context()
+            );
         });
         group.add(coffeeRow);
 
@@ -289,9 +274,9 @@ export default class DevSentryPreferences extends ExtensionPreferences {
             group.add(row);
         };
 
-        addCrypto('Bitcoin (BTC)',  'security-high-symbolic',   'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
-        addCrypto('Ethereum (ETH)', 'emblem-shared-symbolic',   '0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
-        addCrypto('Monero (XMR)',   'security-medium-symbolic', '888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRDZVNUR52n6BFHtGtYMkAjCmfSrFNHb7fBEESMHQHsAZJ8ckXZ2NKsRsm');
+        addCrypto('Bitcoin (BTC)',         'security-high-symbolic',   '1GSHkxfhYjk1Qe4AQSHg3aRN2jg2GQWAcV');
+        addCrypto('Ethereum (ETH)',         'emblem-shared-symbolic',   '0xf43c3f83e53495ea06676c0d9d4fc87ce627ffa3');
+        addCrypto('Tether (USDT - TRC20)', 'security-medium-symbolic', 'THnqG9nchLgaf1LzGK3CqdmNpRxw59hs82');
     }
 
     _openFolderDialog(entry, window) {

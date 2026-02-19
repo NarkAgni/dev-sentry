@@ -26,11 +26,12 @@ const FILTER_TOGGLES = [
 
 export const DevSentryPanel = GObject.registerClass(
 class DevSentryPanel extends PanelMenu.Button {
-    _init(settings) {
+    _init(settings, openPreferences) {
         super._init(0.5, 'DevSentry', false);
 
-        this._settings = settings;
-        this._activeFilters = new Set([LogType.ERROR, LogType.CRITICAL, LogType.TRACE, LogType.SOURCE]);
+        this._settings        = settings;
+        this._openPreferences = openPreferences;
+        this._activeFilters   = new Set([LogType.ERROR, LogType.CRITICAL, LogType.TRACE, LogType.SOURCE]);
         this._rowsByType = {
             [LogType.ERROR]:    [],
             [LogType.CRITICAL]: [],
@@ -60,9 +61,8 @@ class DevSentryPanel extends PanelMenu.Button {
     }
 
     _notify(title, msg) {
-        if (this._settings.get_boolean('show-notifications')) {
+        if (this._settings.get_boolean('show-notifications'))
             Main.notify(title, msg);
-        }
     }
 
     _buildUI() {
@@ -78,18 +78,51 @@ class DevSentryPanel extends PanelMenu.Button {
         box.add_child(new St.Label({ text: 'DevConsole', style_class: 'header-label', y_align: Clutter.ActorAlign.CENTER }));
         box.add_child(new St.Widget({ x_expand: true }));
 
+        // Launch the nested shell via systemd as a transient unit over
+        // D-Bus instead of spawning a raw subprocess from inside gnome-shell.
+        // StartTransientUnit takes: name, mode, properties a(sv), aux a(sa(sv)).
+        // ExecStart is typed a(sasb): [(executable, argv[], ignore-failure)].
         let launchBtn = new St.Button({ label: 'Nested Shell', style_class: 'nested-shell-btn', y_align: Clutter.ActorAlign.CENTER });
         launchBtn.connect('clicked', () => {
             this._notify('Dev Sentry', 'Launching Nested Shell...');
-            try {
-                let proc = new Gio.Subprocess({
-                    argv: ['sh', '-c', 'dbus-run-session -- gnome-shell --nested --wayland 2>&1 | logger -t gnome-shell-nested'],
-                    flags: Gio.SubprocessFlags.NONE
-                });
-                proc.init(null);
-            } catch (e) {
-                console.error('DevSentry: Failed to launch nested shell', e);
-            }
+
+            const execStart = new GLib.Variant('a(sasb)', [[
+                '/bin/sh',
+                ['/bin/sh', '-c',
+                    'dbus-run-session -- gnome-shell --nested --wayland 2>&1 | logger -t gnome-shell-nested'],
+                false,
+            ]]);
+
+            const params = new GLib.Variant('(ssa(sv)a(sa(sv)))', [
+                'dev-sentry-nested-shell.service',
+                'replace',
+                [
+                    ['Description', GLib.Variant.new_string('Dev Sentry – Nested GNOME Shell')],
+                    ['ExecStart',   execStart],
+                    ['Type',        GLib.Variant.new_string('oneshot')],
+                ],
+                [],
+            ]);
+
+            Gio.DBus.session.call(
+                'org.freedesktop.systemd1',
+                '/org/freedesktop/systemd1',
+                'org.freedesktop.systemd1.Manager',
+                'StartTransientUnit',
+                params,
+                null,
+                Gio.DBusCallFlags.NONE,
+                -1,
+                null,
+                (conn, res) => {
+                    try {
+                        conn.call_finish(res);
+                    } catch (e) {
+                        console.error('DevSentry: StartTransientUnit failed', e);
+                        this._notify('Dev Sentry', `Launch failed: ${e.message}`);
+                    }
+                }
+            );
         });
         box.add_child(launchBtn);
 
@@ -104,13 +137,9 @@ class DevSentryPanel extends PanelMenu.Button {
         let pathBtn = this._makeIconBtn('folder-open-symbolic', 'icon-btn');
         pathBtn.connect('clicked', () => {
             try {
-                let proc = new Gio.Subprocess({
-                    argv: ['gnome-extensions', 'prefs', 'dev-sentry@narkagni'],
-                    flags: Gio.SubprocessFlags.NONE
-                });
-                proc.init(null);
+                this._openPreferences?.();
             } catch (e) {
-                console.error('DevSentry: Failed to launch prefs', e);
+                console.error('DevSentry: Failed to open prefs', e);
             }
         });
         box.add_child(pathBtn);
@@ -118,7 +147,6 @@ class DevSentryPanel extends PanelMenu.Button {
         let copyBtn = this._makeIconBtn('edit-copy-symbolic', 'icon-btn');
         copyBtn.connect('clicked', () => {
             let content = this._logManager.buffer.join('\n');
-            
             if (content && content.length > 0) {
                 St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, content);
                 this._notify('Dev Sentry', 'All logs copied to clipboard.');
@@ -188,9 +216,13 @@ class DevSentryPanel extends PanelMenu.Button {
         let label = new St.Label({ text, style_class: `error-text-label ${style.label}`, x_expand: true });
         label.clutter_text.line_wrap = true;
         label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-        
+
         let escaped = GLib.markup_escape_text(text, -1);
-        let markup = escaped.replace(/^CRITICAL:/, '<b>CRITICAL:</b>').replace(/^ERROR:/, '<b>ERROR:</b>').replace(/^FIX:/, '<b>FIX:</b>').replace(/^TRACE:/, '<b>TRACE:</b>');
+        let markup = escaped
+            .replace(/^CRITICAL:/, '<b>CRITICAL:</b>')
+            .replace(/^ERROR:/,    '<b>ERROR:</b>')
+            .replace(/^FIX:/,      '<b>FIX:</b>')
+            .replace(/^TRACE:/,    '<b>TRACE:</b>');
         label.clutter_text.set_markup(markup);
 
         let btn = new St.Button({ style_class: `error-row-btn ${style.row}`, child: label, x_expand: true, x_align: Clutter.ActorAlign.FILL });
@@ -222,33 +254,30 @@ class DevSentryPanel extends PanelMenu.Button {
     }
 
     _openInEditor({ path, line }) {
-        this._notify('Dev Sentry', 'Opening via Host Environment...');
+        this._notify('Dev Sentry', 'Opening in VS Code...');
 
-        try {
-            let command = `
-                eval $(cat /proc/$(pgrep -u $(id -u) gnome-shell | head -1)/environ | tr '\\0' '\\n' | grep -E '^(DISPLAY|WAYLAND_DISPLAY|DBUS_SESSION_BUS_ADDRESS)=' | sed 's/^/export /') && code -g ${path}:${line}
-            `.trim();
+        const uri = `vscode://file${path}:${line}`;
 
-            let argv = ['/bin/bash', '-c', command];
-
-            GLib.spawn_async(null, argv, null, GLib.SpawnFlags.SEARCH_PATH, null);
-            this.menu.close();
-        } catch (e) {
-            this._notify('Dev Sentry', `Launch failed: ${e.message}`);
-            
-            let codeBin = GLib.find_program_in_path('code');
-            if (codeBin) {
+        Gio.DBus.session.call(
+            'org.freedesktop.portal.Desktop',
+            '/org/freedesktop/portal/desktop',
+            'org.freedesktop.portal.OpenURI',
+            'OpenURI',
+            new GLib.Variant('(ssa{sv})', ['', uri, {}]),
+            null,
+            Gio.DBusCallFlags.NONE,
+            -1,
+            null,
+            (conn, res) => {
                 try {
-                    let proc = new Gio.Subprocess({
-                        argv: [codeBin, '--goto', `${path}:${line}`],
-                        flags: Gio.SubprocessFlags.NONE
-                    });
-                    proc.init(null);
-                } catch (err) {
-                    console.error('DevSentry: Failed to launch fallback code editor', err);
+                    conn.call_finish(res);
+                    this.menu.close();
+                } catch (e) {
+                    console.error('DevSentry: OpenURI portal failed', e);
+                    this._notify('Dev Sentry', `Failed to open editor: ${e.message}`);
                 }
             }
-        }
+        );
     }
 
     _makeIconBtn(iconName, styleClass) {
